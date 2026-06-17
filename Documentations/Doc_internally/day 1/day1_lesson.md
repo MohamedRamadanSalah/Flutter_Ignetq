@@ -257,10 +257,49 @@ mindmap
 - [ ] Point at every file in `taskflow/lib/` and name its layer.
 - [ ] Explain the two boundaries: DTO→Entity and Exception→Failure.
 - [ ] Add the `Project` entity + `ProjectRepository` contract yourself.
+- [ ] Answer interview Q1–Q5 (below) out loud without notes.
 
 ---
 
-## 10. The One Sentence To Remember 🧠
+## 10. 🏢 Interview Vault — Questions From Top Middle East Companies
+> *Real-style questions asked at Careem, Talabat, Noon, Tabby, Tamara, Instabug, Vezeeta, Foodics, Halan, etc. Architecture is the #1 senior-screening topic in the region.*
+
+```mermaid
+mindmap
+  root((What they probe<br/>on Day 1 topics))
+    Do you UNDERSTAND boundaries
+      or just memorize folder names
+    Can you JUSTIFY decisions
+      "why not put the API call in the widget?"
+    Trade-offs awareness
+      "isn't this over-engineering for a small app?"
+    SOLID in practice
+      Dependency Inversion specifically
+```
+
+**Q1. Walk me through Clean Architecture and the dependency rule.** *(asked everywhere)*
+> **A:** Three layers — Presentation, Domain, Data. Domain is the center and pure Dart; it holds entities, use cases, and repository *contracts*. Source-code dependencies point only inward, so business logic never depends on Flutter, Dio, or JSON. This makes the domain testable and lets us swap frameworks without touching business rules.
+> *🎯 Really testing:* whether you can explain the **arrow direction** and *why* it matters, not just list layers.
+
+**Q2. Why does the repository interface live in the domain layer and the implementation in data?**
+> **A:** Because the repository is a *business contract* ("give me tasks"), not a networking detail. Putting the interface in domain inverts the dependency: data depends on domain instead of the reverse (Dependency Inversion Principle). The domain stays ignorant of *how* data is fetched.
+> *🎯 Really testing:* genuine grasp of Dependency Inversion vs cargo-culting folder structure.
+
+**Q3. What is a DTO and why not use it throughout the app?**
+> **A:** A DTO mirrors the API JSON shape and lives only in the data layer. If DTOs leak into UI/domain, an API field rename ripples through the whole app. The mapper isolates that change to one place, and the domain keeps a stable, business-shaped `Entity`.
+> *🎯 Really testing:* do you understand *coupling* and *single point of change*.
+
+**Q4. Isn't Clean Architecture over-engineering for a small app?** *(trap question)*
+> **A:** For a throwaway prototype, yes — boilerplate has a cost. But for any app expected to grow, be tested, or be maintained by a team, the boundaries pay for themselves the first time requirements change. The honest senior answer is "it depends on the app's lifespan and team size" — show you weigh trade-offs, don't dogmatically defend it.
+> *🎯 Really testing:* engineering maturity — can you criticize your own approach.
+
+**Q5. How would you make the domain layer independently testable?**
+> **A:** Keep it pure Dart (no Flutter/Dio imports), depend only on abstractions, and inject fakes/mocks of the repository contract in tests. Then a use case can be unit-tested with zero network or widgets.
+> *🎯 Really testing:* connecting architecture to testability.
+
+---
+
+## 11. The One Sentence To Remember 🧠
 
 > **"Dependencies point inward; the domain is pure and depends on nothing — so the business survives any change to the framework, the network, or the UI."**
 

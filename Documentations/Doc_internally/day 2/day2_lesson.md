@@ -215,7 +215,49 @@ mindmap
 
 ---
 
-## 9. The One Sentence To Remember 🧠
+## 9. 🏢 Interview Vault — Questions From Top Middle East Companies
+> *Networking + auth questions are heavy at delivery/fintech companies — Careem, Talabat, Noon, Tabby, Tamara, Jahez — because their apps live or die on flaky mobile networks.*
+
+```mermaid
+mindmap
+  root((What they probe<br/>on Day 2 topics))
+    Token lifecycle
+      refresh, storage, 401 handling
+    Resilience
+      timeouts, retries, offline
+    Interceptors
+      do you know what runs when
+    Security
+      where do you store tokens
+```
+
+**Q1. How do you handle token refresh on a 401?**
+> **A:** An auth interceptor catches the 401, calls the refresh endpoint with the refresh token, stores the new access token securely, and retries the original request — transparently to the user. I add a guard flag so a 401 on the refresh call itself doesn't cause an infinite loop, and I queue concurrent requests during refresh so they all retry once with the new token.
+> *🎯 Really testing:* the **infinite-loop guard** and **concurrent-request queueing** — that's the senior-level detail juniors miss.
+
+**Q2. Where do you store the access and refresh tokens, and why not SharedPreferences?**
+> **A:** In `flutter_secure_storage` (Keychain on iOS, Keystore/EncryptedSharedPreferences on Android). SharedPreferences is plain text and readable on rooted/jailbroken devices, so storing tokens there is a security risk.
+> *🎯 Really testing:* security awareness.
+
+**Q3. What's the difference between `connectTimeout`, `sendTimeout`, and `receiveTimeout`?**
+> **A:** `connectTimeout` = time to establish the TCP/TLS connection; `sendTimeout` = time to upload the request body; `receiveTimeout` = time to download the response. Setting all three prevents the app from hanging indefinitely on a bad network.
+> *🎯 Really testing:* practical Dio depth.
+
+**Q4. Why use interceptors instead of handling headers/errors in each call?**
+> **A:** DRY and a single source of truth. Auth, logging, retry, and error translation are cross-cutting concerns — putting them in one interceptor chain means one place to change, consistent behavior everywhere, and data sources that stay clean.
+> *🎯 Really testing:* cross-cutting-concern thinking.
+
+**Q5. A request fails. How do you decide whether to retry?**
+> **A:** Retry only *idempotent, transient* failures — timeouts and 5xx on GETs — with capped attempts and backoff. Never blindly retry a POST (could double-create) or a 4xx (your request is wrong; retrying won't help).
+> *🎯 Really testing:* understanding idempotency and not retrying the wrong things.
+
+**Q6. How would you make networking testable?**
+> **A:** Depend on an abstraction (the data source interface), inject the Dio instance, and in tests use a mock Dio or `http_mock_adapter` so no real network is hit. The repository can then be tested against fake responses including error cases.
+> *🎯 Really testing:* testability of the network layer.
+
+---
+
+## 10. The One Sentence To Remember 🧠
 
 > **"All traffic flows through one configured client, where interceptors add the token, log the call, retry on failure, and translate every raw error into a typed one — so the rest of the app never touches networking details."**
 
