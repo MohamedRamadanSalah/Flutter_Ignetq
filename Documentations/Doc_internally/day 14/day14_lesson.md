@@ -161,16 +161,16 @@ mindmap
       Needless rebuilds everywhere
     Watching whole provider in tiles
       Use select
-    Heavy work in build (sorting/parsing)
+    Heavy work in build like sorting or parsing
       Precompute in providers
-    ListView (non-builder) for long lists
-      Builds everything → jank
+    Plain ListView for long lists
+      Builds everything so it janks
     Spinner for everything
       Skeletons feel faster
     Uncached network images
-      Re-downloads on every rebuild/scroll
+      Re-downloads on every rebuild or scroll
     Premature optimization
-      Measure first (DevTools), then fix hotspots
+      Measure first with DevTools then fix hotspots
 ```
 
 ---
