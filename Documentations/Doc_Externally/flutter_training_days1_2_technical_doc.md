@@ -4,7 +4,7 @@
 **Author:** Mohamed Ramadan  
 **Date:** 2026-06-21  
 **Covers:** Day 1 (Clean Architecture & Project Skeleton) · Day 2 (Networking & the API Client)  
-**Status:** Days 3 & 4 notes pending — will be added when completed
+**Status:** Complete — Days 1, 2, 3 & 4
 
 ---
 
@@ -22,6 +22,8 @@
    - [When to Skip Use Cases](#9-when-to-skip-use-cases)
    - [Day 1 Interview Key Phrases](#10-day-1-interview-key-phrases)
 2. [Day 2 — Networking & the API Client](#day-2--networking--the-api-client)
+3. [Day 3 — DTOs, Serialization & Mapping](#day-3--dtos-serialization--mapping)
+4. [Day 4 — Repository & Data Sources](#day-4--repository--data-sources)
    - [The One Front Door Concept](#1-the-one-front-door-concept)
    - [HTTP Fundamentals](#2-http-fundamentals)
    - [Interceptors — The Core Concept](#3-interceptors--the-core-concept)
@@ -1026,6 +1028,497 @@ flowchart LR
 **Day 2:**
 > *"All traffic flows through one configured Dio client, where interceptors add the token, log the call, retry on transient failures, and translate every raw error into a typed one — so the rest of the app never touches networking details."*
 
+**Day 3:**
+> *"Parse JSON into a literal DTO at the border, then map it into a clean business entity — so API mess is caught early and never leaks inward."*
+
+**Day 4:**
+> *"The repository is the single source of truth: it coordinates remote and local sources behind one contract, so the rest of the app asks for data without ever knowing where it comes from."*
+
+---
 ---
 
-*Days 3 & 4 documentation will be added once the corresponding notes are completed.*
+# Day 3 — DTOs, Serialization & Mapping
+
+---
+
+## 1. The Problem This Solves
+
+The API hands your app a **crumpled receipt** — a raw JSON blob:
+
+```json
+{ "due_date": null, "is_done": "1", "titel": "Buy milk" }
+```
+
+Notice the landmines: a typo (`titel`), a boolean that's actually a string (`"1"`), a date that's null.
+
+**The wrong approach (Layla's way):** reading `response.data['titel']` directly in widgets. It works — until the backend fixes the typo to `title`. Now the app shows blank titles in production and there are 60 places to fix. Every `['...']` string key is a landmine: no autocomplete, no type safety, crashes only at runtime.
+
+**The professional approach:** the instant JSON arrives, **stamp it into a strict, typed DTO**. If the JSON shape is wrong, you find out at the *border*, in one place. Then translate that DTO into a clean business Entity.
+
+---
+
+## 2. The Full Transformation Flow
+
+```mermaid
+flowchart LR
+    JSON["Raw JSON\n(untyped, fragile)"] -->|"fromJson"| DTO["TaskDto\n(typed, API-shaped)"]
+    DTO -->|"mapper"| ENT["Task Entity\n(business-shaped)"]
+    ENT --> DOMAIN["Domain & UI\nuse this only"]
+
+    style JSON fill:#f8d7da,stroke:#c9184a
+    style DTO fill:#d4edda,stroke:#52b788
+    style ENT fill:#fff3cd,stroke:#e9c46a
+    style DOMAIN fill:#caf0f8,stroke:#0077b6
+```
+
+Two transformations, two purposes:
+
+- **`fromJson`** — *parsing*: untyped → typed. Catches shape errors at the border.
+- **mapper** — *translating*: API language → business language. Decouples you from the API.
+
+---
+
+## 3. DTO vs Entity — Two Different Masters
+
+Beginners ask: *"Why two classes that look almost the same? Isn't that duplication?"*
+
+No — they answer to **two different masters**:
+
+```mermaid
+flowchart TD
+    subgraph dtoSide["DTO — serves the API"]
+        D1["Field names match JSON\n(due_date, is_done)"]
+        D2["Types match wire format\n(date is String, bool is '1')"]
+        D3["Changes when the API changes"]
+    end
+
+    subgraph entSide["Entity — serves the business"]
+        E1["Field names you choose\n(dueDate, isDone)"]
+        E2["Real types\n(DateTime, bool)"]
+        E3["Changes only when the\nbusiness logic changes"]
+    end
+
+    dtoSide -. "mapper bridges them" .-> entSide
+
+    style dtoSide fill:#d4edda,stroke:#52b788
+    style entSide fill:#fff3cd,stroke:#e9c46a
+```
+
+> **Mental model — The Passport Analogy:** The DTO is a *passport from the API's country*. The Entity is your *citizen ID*. At the border (the mapper), a traveler trades one for the other. You never let foreign passports roam freely inside your country.
+
+---
+
+## 4. Code Generation — Freezed + json_serializable
+
+Writing `fromJson`/`toJson` by hand is tedious and error-prone. **`freezed` + `json_serializable`** generate them automatically, plus immutability, `copyWith`, `==`, and `toString`.
+
+```mermaid
+flowchart LR
+    A["You write:\n@freezed class TaskDto\nwith fields"] --> B["build_runner\n(code generator)"]
+    B --> C["Generates:\ntask_dto.freezed.dart\ntask_dto.g.dart"]
+    C --> D["You get:\nfromJson / toJson\ncopyWith, ==\nimmutability"]
+
+    style A fill:#d1ecf1,stroke:#0077b6
+    style D fill:#d4edda,stroke:#52b788
+```
+
+### build_runner Workflow
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant BR as build_runner
+    participant Gen as *.g.dart / *.freezed.dart
+
+    Dev->>Dev: Edit TaskDto fields
+    Dev->>BR: dart run build_runner build --delete-conflicting-outputs
+    BR->>Gen: Regenerate parsing code
+    Note over Dev,Gen: NEVER edit generated files by hand — they get overwritten on next build
+    Dev->>Gen: Import and use TaskDto.fromJson(json)
+```
+
+**Commands:**
+
+```bash
+# One-time build:
+dart run build_runner build --delete-conflicting-outputs
+
+# Auto-regenerate on save while developing:
+dart run build_runner watch --delete-conflicting-outputs
+```
+
+### Annotated DTO Example
+
+```dart
+@freezed
+class TaskDto with _$TaskDto {
+  const factory TaskDto({
+    required int id,                     // API sends int, entity wants String
+    @JsonKey(name: 'todo') required String title,  // JSON key ≠ field name
+    required bool completed,
+    required int userId,
+  }) = _TaskDto;
+
+  factory TaskDto.fromJson(Map<String, dynamic> json) => _$TaskDtoFromJson(json);
+}
+```
+
+---
+
+## 5. Handling Real-World JSON Mess
+
+APIs are messy. Your DTO is where you tame the mess — keeping it **dumb and literal**:
+
+```mermaid
+flowchart TD
+    P1["Field renamed in JSON\ne.g. 'todo' in API but 'title' in code"] --> S1["@JsonKey(name: 'todo')\nrename at parse time"]
+    P2["Field might be null\ne.g. 'due_date' sometimes absent"] --> S2["Make it nullable:\nDateTime? dueDate"]
+    P3["Nested object\ne.g. author object inside task"] --> S3["Nested DTO:\nAuthorDto author"]
+    P4["List of objects\ne.g. list of subtasks"] --> S4["List of DTO:\nList<SubtaskDto>"]
+    P5["Date as string\ne.g. '2026-06-21T00:00:00Z'"] --> S5["Keep String in DTO\nparse to DateTime in the MAPPER"]
+
+    style S5 fill:#fff3cd,stroke:#e9c46a
+    style S1 fill:#d4edda,stroke:#52b788
+    style S2 fill:#d4edda,stroke:#52b788
+    style S3 fill:#d4edda,stroke:#52b788
+    style S4 fill:#d4edda,stroke:#52b788
+```
+
+> **Critical rule:** Keep the DTO *dumb and literal* — it mirrors JSON exactly, strings and all. Do the *smart* conversions (String → DateTime, `"1"` → `true`) in the **mapper**. This keeps parsing separate from interpretation.
+
+### The Mapper
+
+```dart
+extension TaskDtoMapper on TaskDto {
+  Task toEntity() => Task(
+    id: id.toString(),            // int → String  (API type → business type)
+    title: title,
+    isDone: completed,            // renamed field
+  );
+}
+```
+
+---
+
+## 6. Project Structure for Day 3
+
+```mermaid
+flowchart TD
+    subgraph data["data/"]
+        dto["dtos/task_dto.dart\n@freezed + fromJson"]
+        map["mappers/task_mapper.dart\ntoEntity() extension"]
+    end
+    subgraph domain["domain/"]
+        ent["entities/task.dart\npure Dart"]
+    end
+
+    dto -->|"toEntity()"| ent
+    ent -->|"toDto() — for write operations"| dto
+
+    style data fill:#d4edda,stroke:#52b788
+    style domain fill:#fff3cd,stroke:#e9c46a
+```
+
+---
+
+## 7. Common Traps
+
+```mermaid
+mindmap
+  root((Day 3 Traps))
+    Editing generated .g.dart files
+      They get overwritten on next build
+      Never touch them
+    Putting DateTime parsing in the DTO
+      Keep DTO literal
+      Parse in the mapper only
+    Skipping the mapper
+      Using DTO directly in widgets
+      API details leak everywhere
+    Non-nullable field the API sends null
+      Runtime crash
+      Model nullability honestly in the DTO
+    Forgetting --delete-conflicting-outputs
+      Stale generated code
+      Confusing build errors
+```
+
+---
+
+## 8. Day 3 Interview Vault
+
+| Question | Answer | What is really being tested |
+|---|---|---|
+| Why separate DTOs from domain entities? | DTOs are API-shaped and change when the backend changes; entities are business-shaped and stable. The mapper isolates API churn to one file. Without the split, a renamed JSON field breaks the whole app. | Coupling/decoupling judgment |
+| What does `freezed` give you over a hand-written class? | Immutability, `copyWith`, value equality (`==`/`hashCode`), `toString`, union/sealed types, and (with `json_serializable`) `fromJson`/`toJson` — all generated, so no boilerplate bugs. | You know *why* the tool exists, not just how to use it |
+| The API returns a date as a string. Where do you convert it to `DateTime`? | In the mapper, not the DTO. The DTO stays a literal mirror of the JSON (`String dueDate`); the mapper interprets it into a `DateTime`. This separates parsing from interpretation. | Separation of concerns at a fine grain |
+| How do you handle a field that's sometimes null? | Model it as nullable in the DTO and provide a sensible default in the mapper (or keep nullable in the entity if business allows). Never assume presence — defensive parsing prevents production crashes. | Defensive, production-minded coding |
+| How do you handle API versioning / breaking changes? | Because all parsing is funneled through DTOs + mappers, a breaking change is absorbed in those two files. Domain and UI don't change. You can even map two DTO versions to the same entity during a migration. | Maintainability at scale |
+
+---
+---
+
+# Day 4 — Repository & Data Sources
+
+---
+
+## 1. The Problem This Solves
+
+An app has **two places** to get data from: the **network** (fresh, but needs internet) and the **local database** (instant, but possibly stale).
+
+**The wrong approach (Yousef's way):** letting widgets decide: *"If online, call the API; else read Hive."* That `if (online)` logic gets copy-pasted into every screen. When the caching rule changes, it must be hunted through the whole UI. Two screens implement it slightly differently and show **different data for the same task**. The app contradicts itself.
+
+**The fix — the Repository:** a single trusted spokesperson. The UI asks *"give me the tasks"* and never knows or cares whether the answer came from the network, the cache, or a carrier pigeon. The repository alone decides. **One rule, one place, one truth.**
+
+---
+
+## 2. The Big Picture
+
+```mermaid
+flowchart TD
+    UC["Use Case"] --> REPO["Repository\n(the spokesperson / brain)"]
+    REPO --> RDS["RemoteDataSource\n(Dio → API)"]
+    REPO --> LDS["LocalDataSource\n(Hive / Isar)"]
+    RDS --> API["Remote API"]
+    LDS --> DB[("Local DB")]
+
+    style REPO fill:#fff3cd,stroke:#d39e00,stroke-width:3px
+    style RDS fill:#caf0f8,stroke:#0077b6
+    style LDS fill:#d4edda,stroke:#52b788
+```
+
+> **Mental model — The Librarian:** You ask for a book; you don't care whether she fetches it from the shelf (cache), orders it from another branch (network), or photocopies it. You just trust her to hand you the right book. The *coordination* is her job, hidden from you.
+
+---
+
+## 3. Single Source of Truth (SSoT)
+
+The phrase you will repeat in every architecture interview: the repository is the **single source of truth**. Every consumer goes through it, so the rule lives in exactly one place.
+
+```mermaid
+flowchart LR
+    subgraph bad["Without a Repository"]
+        S1["Screen A: if online → API\nelse → Hive"] --> X[(data)]
+        S2["Screen B: slightly different rule"] --> X
+        S3["Screen C: yet another variant"] --> X
+    end
+
+    subgraph good["With a Repository"]
+        SA["Screen A"] --> R["Repository\n(one rule, one place)"]
+        SB["Screen B"] --> R
+        SC["Screen C"] --> R
+        R --> Y[(data)]
+    end
+
+    style bad fill:#f8d7da,stroke:#c9184a
+    style good fill:#d4edda,stroke:#52b788
+```
+
+---
+
+## 4. Remote vs Local — Who Does What
+
+The repository delegates. Each data source has **one narrow job** and knows nothing about the other:
+
+```mermaid
+classDiagram
+    class TaskRepository {
+        <<interface — lives in Domain>>
+        +getTasks() Either~Failure, List~Task~~
+        +toggleDone(id) Either~Failure, Task~
+        +deleteTask(id) Either~Failure, void~
+    }
+
+    class TaskRepositoryImpl {
+        -TaskRemoteDataSource remote
+        -TaskLocalDataSource local
+        +getTasks() coordinates both sources
+        +toggleDone() coordinates both sources
+        +deleteTask() coordinates both sources
+    }
+
+    class TaskRemoteDataSource {
+        <<interface>>
+        +getTasks() List~TaskDto~
+        Talks to API only
+        Throws exceptions
+    }
+
+    class TaskLocalDataSource {
+        <<interface>>
+        +cacheTasks(List~TaskDto~)
+        +getCachedTasks() List~TaskDto~
+        Reads/writes local DB only
+    }
+
+    TaskRepositoryImpl ..|> TaskRepository
+    TaskRepositoryImpl --> TaskRemoteDataSource
+    TaskRepositoryImpl --> TaskLocalDataSource
+```
+
+| Layer | Job | Returns | Knows about |
+|---|---|---|---|
+| **RemoteDataSource** | Makes the Dio call | `List<TaskDto>` or throws | API only |
+| **LocalDataSource** | Reads/writes local DB | `List<TaskDto>` or throws | DB only |
+| **RepositoryImpl** | Decides when to use each | `Either<Failure, List<Task>>` | Both sources + mapping |
+
+---
+
+## 5. The Read-Through Flow (Network → Cache → Fallback)
+
+The classic coordination pattern the repository orchestrates:
+
+```mermaid
+sequenceDiagram
+    participant UC as Use Case
+    participant R as RepositoryImpl
+    participant Rem as RemoteDataSource
+    participant Loc as LocalDataSource
+
+    UC->>R: getTasks()
+    R->>Rem: getTasks()
+
+    alt Network OK
+        Rem-->>R: List<TaskDto>
+        R->>Loc: cacheTasks(dtos)
+        Note over R: Map DTOs → Entities
+        R-->>UC: Right(List<Task>) — fresh data
+    else Network fails
+        R->>Loc: getCachedTasks()
+        alt Cache has data
+            Loc-->>R: cached List<TaskDto>
+            Note over R: Map DTOs → Entities
+            R-->>UC: Right(List<Task>) — stale but usable
+        else Cache is empty
+            R-->>UC: Left(NetworkFailure) — nothing to show
+        end
+    end
+```
+
+> **Critical insight:** The repository turns failure into **graceful degradation**. A dropped connection doesn't mean a blank screen — it means "show what we last knew." This is the foundation of offline-first architecture (Day 5).
+
+---
+
+## 6. Repository Implementation Skeleton
+
+```dart
+class TaskRepositoryImpl implements TaskRepository {
+  const TaskRepositoryImpl({
+    required TaskRemoteDataSource remote,
+    required TaskLocalDataSource local,
+  })  : _remote = remote,
+        _local = local;
+
+  final TaskRemoteDataSource _remote;
+  final TaskLocalDataSource _local;
+
+  @override
+  Future<Either<Failure, List<Task>>> getTasks() async {
+    try {
+      // 1. Try network
+      final dtos = await _remote.getTasks();
+      // 2. Update cache on success
+      await _local.cacheTasks(dtos);
+      // 3. Map and return — BOUNDARY: DTO → Entity
+      return Right(dtos.map((d) => d.toEntity()).toList());
+    } on NetworkException {
+      // 4. Fall back to cache — BOUNDARY: Exception → Failure
+      try {
+        final cached = await _local.getCachedTasks();
+        return Right(cached.map((d) => d.toEntity()).toList());
+      } on CacheException {
+        return const Left(NetworkFailure());
+      }
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+}
+```
+
+---
+
+## 7. Project Structure for Day 4
+
+```mermaid
+flowchart TD
+    subgraph data["data/ layer"]
+        ri["repositories/task_repository_impl.dart\n(coordinator — brain)"]
+        rds["datasources/task_remote_datasource.dart\n(Dio calls, throws exceptions)"]
+        lds["datasources/task_local_datasource.dart\n(Hive reads/writes) ← NEW Day 4"]
+    end
+
+    subgraph domain["domain/ layer"]
+        rc["repositories/task_repository.dart\n(interface/contract)"]
+    end
+
+    ri -.->|"implements"| rc
+    ri --> rds
+    ri --> lds
+
+    style data fill:#d4edda,stroke:#52b788
+    style domain fill:#fff3cd,stroke:#e9c46a
+```
+
+---
+
+## 8. The Two Boundaries — Revisited in the Repository
+
+The repository implementation is the **exact spot** where both Day 1 boundaries are enforced:
+
+```mermaid
+flowchart TD
+    RAW["Raw Data Sources\n(DTOs + raw Exceptions)"]
+
+    subgraph REPO["RepositoryImpl — The Two Boundaries"]
+        B1["Boundary 1\nDTO → Entity\n(map every dto.toEntity())"]
+        B2["Boundary 2\nException → Failure\n(catch NetworkException → Left(NetworkFailure))"]
+    end
+
+    CLEAN["Clean Domain Output\n(Entities + typed Failures\nvia Either<Failure, T>)"]
+
+    RAW --> B1
+    RAW --> B2
+    B1 --> CLEAN
+    B2 --> CLEAN
+
+    style REPO fill:#fff3cd,stroke:#e9c46a
+    style RAW fill:#f8d7da,stroke:#c9184a
+    style CLEAN fill:#d4edda,stroke:#52b788
+```
+
+---
+
+## 9. Common Traps
+
+```mermaid
+mindmap
+  root((Day 4 Traps))
+    Caching logic in the UI
+      Belongs in the repository only
+      Widgets never decide where data comes from
+    Data source that knows about the other
+      Remote must NOT import Local
+      The repository coordinates — not the sources
+    Returning DTOs from the repository
+      Map to entities before returning
+      DTOs must not escape the data layer
+    Repository throwing exceptions
+      Catch all exceptions
+      Convert to Failure and return Either
+    God-repository doing everything
+      Keep data sources narrow and single-purpose
+      Repository coordinates but doesn't re-implement sources
+```
+
+---
+
+## 10. Day 4 Interview Vault
+
+| Question | Answer | What is really being tested |
+|---|---|---|
+| What is the Repository pattern and why use it? | A repository abstracts *where* data comes from behind a domain contract, acting as the single source of truth. The UI/domain ask for data without knowing if it's network, cache, or both. It centralizes data-access policy and improves testability. | SSoT understanding + decoupling |
+| Repository vs Data Source — what's the difference? | A data source does *one* low-level job (one API, one DB) and is "dumb." The repository is the "brain" that coordinates multiple sources, applies caching policy, maps DTO→Entity, and converts exceptions to Failures. | Layering precision |
+| How does your repository behave when the network is down? | It tries remote, and on failure falls back to the local cache, returning cached entities. If the cache is also empty, it returns a typed `NetworkFailure`. This is graceful degradation / the basis of offline-first. | Resilience design |
+| Where do you map DTO→Entity and Exception→Failure? | Both in the repository implementation — it's the boundary between the data world and the domain world. This keeps DTOs and raw exceptions from ever leaking inward. | Boundary discipline |
+| How do you unit-test a repository? | Mock both data sources with `mocktail`. Assert: on success it caches and returns mapped entities; on remote failure it returns cached data; on total failure it returns the right `Failure`. No real network or DB involved. | Testability of coordination logic |
