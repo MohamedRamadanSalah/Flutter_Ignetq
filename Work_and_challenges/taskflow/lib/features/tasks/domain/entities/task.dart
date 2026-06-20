@@ -11,14 +11,14 @@ class Task extends Equatable {
     this.dueDate,
   });
 
-  final String id;
+  final int id;
   final String title;
   final String? description;
   final bool isDone;
   final DateTime? dueDate;
 
   Task copyWith({
-    String? id,
+    int? id,
     String? title,
     String? description,
     bool? isDone,

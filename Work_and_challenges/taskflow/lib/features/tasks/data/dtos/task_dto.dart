@@ -1,36 +1,18 @@
-/// Data Transfer Object — mirrors the API JSON shape exactly.
-/// It stays in the data layer and is NEVER exposed to domain/UI.
-/// (Day 3: convert this to a `freezed` + `json_serializable` model.)
-class TaskDto {
-  const TaskDto({
-    required this.id,
-    required this.title,
-    required this.completed,
-    this.description,
-    this.dueDate,
-  });
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  final String id;
-  final String title;
-  final String? description;
-  final bool completed;
-  final String? dueDate; // API sends ISO-8601 string
+part 'task_dto.freezed.dart';
+part 'task_dto.g.dart';
 
-  factory TaskDto.fromJson(Map<String, dynamic> json) {
-    return TaskDto(
-      id: (json['id'] as int).toString(),
-      title: json['todo'] as String,
-      description: json['description'] as String?,
-      completed: json['completed'] as bool? ?? false,
-      dueDate: json['due_date'] as String?,
-    );
-  }
+@freezed
+class TaskDto with _$TaskDto{
+  const factory TaskDto({
+    required int id,
+    required String title,
+    String? description,
+    @Default(false) bool completed,
+    String? dueDate,
+  }) = _TaskDto;
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'description': description,
-        'completed': completed,
-        'due_date': dueDate,
-      };
+  factory TaskDto.fromJson(Map<String, dynamic> json) =>
+      _$TaskDtoFromJson(json);
 }
