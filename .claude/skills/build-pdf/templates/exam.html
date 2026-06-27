@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Networks 1 — Question Set</title>
+<style>
+  /* ====== Page setup (A4) — Edge headless honors @page size/margins ====== */
+  @page { size: A4; margin: 22mm 18mm 24mm 18mm; }
+  :root {
+    --ink: #1a202c; --muted: #4a5568; --accent: #1d4ed8;
+    --rule: #cbd5e1; --band: #eff6ff;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: "Segoe UI", "Calibri", Arial, sans-serif;
+    font-size: 11pt; line-height: 1.45; color: var(--ink); margin: 0;
+  }
+
+  /* ====== Cover header ====== */
+  header.exam-head { border-bottom: 3px solid var(--accent); padding-bottom: 10px; margin-bottom: 14px; }
+  header.exam-head .course { font-size: 10pt; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  header.exam-head h1 { font-size: 20pt; margin: 2px 0 6px; color: var(--accent); }
+  header.exam-head .meta { display: flex; gap: 24px; font-size: 10pt; color: var(--muted); }
+
+  .instructions {
+    background: var(--band); border-left: 4px solid var(--accent);
+    padding: 10px 14px; margin: 12px 0 20px; font-size: 10pt;
+  }
+  .instructions h2 { margin: 0 0 6px; font-size: 11pt; }
+  .instructions ul { margin: 4px 0 0 18px; padding: 0; }
+
+  /* ====== Sections & questions ====== */
+  h2.section {
+    font-size: 13pt; color: var(--accent); border-bottom: 1.5px solid var(--rule);
+    padding-bottom: 4px; margin: 26px 0 12px; break-after: avoid;
+  }
+  .question {
+    break-inside: avoid;            /* never split a question across pages */
+    margin: 0 0 16px; padding: 10px 12px;
+    border: 1px solid var(--rule); border-radius: 6px;
+  }
+  .question .qhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .question .qnum { font-weight: 700; color: var(--accent); }
+  .question .tags { font-size: 8.5pt; color: var(--muted); }
+  .tags .pill { border: 1px solid var(--rule); border-radius: 8px; padding: 1px 7px; margin-left: 4px; }
+  .parts { margin: 6px 0 0 14px; padding: 0; }
+  .parts li { margin-bottom: 5px; }
+  ol.choices { list-style-type: upper-alpha; margin: 8px 0 2px 26px; padding: 0; }
+  ol.choices li { margin-bottom: 4px; }
+  .answer-space { border-bottom: 1px dotted var(--muted); height: 26px; margin-top: 8px; }
+
+  /* ====== Figures (inline SVG) ====== */
+  figure.diagram { margin: 12px auto; text-align: center; break-inside: avoid; }
+  figure.diagram svg { max-width: 100%; height: auto; }
+  figure.diagram figcaption { font-size: 9.5pt; color: var(--muted); margin-top: 4px; }
+
+  /* ====== Tables ====== */
+  table { border-collapse: collapse; margin: 8px 0; font-size: 10pt; }
+  th, td { border: 1px solid var(--rule); padding: 4px 10px; text-align: left; }
+  th { background: var(--band); }
+
+  code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 10pt; }
+
+  /* ====== Answer key — always on a fresh page ====== */
+  .answer-key { break-before: page; }
+  .answer-key h2 { color: #b91c1c; border-bottom-color: #fca5a5; }
+  .answer-key .question { border-color: #fecaca; }
+  .worked { background: #fef9f3; border-left: 3px solid #ea580c; padding: 8px 12px; margin: 6px 0; font-size: 10pt; }
+  .distractor-map { font-size: 9.5pt; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="exam-head">
+  <div class="course">Computer Networks 1</div>
+  <h1>{{TITLE}}</h1>
+  <div class="meta">
+    <span>Topic: {{TOPIC}}</span><span>Time: {{DURATION}}</span>
+    <span>Total marks: {{MARKS}}</span><span>Date: {{DATE}}</span>
+  </div>
+</header>
+
+<div class="instructions">
+  <h2>Instructions</h2>
+  <ul>
+    <li>Show all calculation steps — answers without working receive no credit.</li>
+    <li>State units in every numeric answer.</li>
+    <li>Diagrams are drawn to convention: hosts are blue rectangles, routers red circles, switches green rectangles.</li>
+  </ul>
+</div>
+
+<h2 class="section">Section A — Multiple Choice</h2>
+
+<div class="question">
+  <div class="qhead">
+    <span class="qnum">Question 1 <span style="color:#4a5568">(2 marks)</span></span>
+    <span class="tags"><span class="pill">Understand</span><span class="pill">medium</span></span>
+  </div>
+  <p>{{STEM}}</p>
+  <figure class="diagram">
+    {{INLINE_SVG}}
+    <figcaption>Figure 1 — caption stating what the figure shows.</figcaption>
+  </figure>
+  <ol class="choices">
+    <li>option A</li><li>option B</li><li>option C</li><li>option D</li>
+  </ol>
+</div>
+
+<section class="answer-key">
+  <h2 class="section">Answer Key &amp; Worked Solutions</h2>
+  <div class="question">
+    <div class="qhead"><span class="qnum">Question 1 — Answer: C</span></div>
+    <div class="worked">Worked solution, every step with units.</div>
+    <p class="distractor-map">A: confuses transmission with propagation delay · B: used bytes
+    instead of bits · D: forgot the second hop.</p>
+  </div>
+</section>
+
+</body>
+</html>
